@@ -671,21 +671,21 @@ def main():
                     epoch, train_metrics, eval_metrics, os.path.join(output_dir, 'summary.csv'),
                     write_header=best_metric is None, log_wandb=args.log_wandb and has_wandb)
 
-            if saver is not None:
-                # save proper checkpoint with eval metric
-                save_metric = train_metrics[eval_metric]
-                best_metric, best_epoch = saver.save_checkpoint(epoch, metric=save_metric)
-                if args.interval_saved_epochs is not None and epoch % args.interval_saved_epochs == 0:
-                    # only the last {args.checkpoint_hist} checkpoints will be kept
-                    # this makes checkpoint every args.interval_saved_epochs to be saved
-                    if args.output:
-                        checkpoint_file = f'{args.output}/{args.experiment}/checkpoint-{epoch}.pth.tar'
-                        target_file = f'{args.output}/{args.experiment}/held-checkpoint-{epoch}.pth.tar'
-                    else:
-                        checkpoint_file = f'output/train/{args.experiment}/checkpoint-{epoch}.pth.tar'
-                        target_file = f'output/train/{args.experiment}/held-checkpoint-{epoch}.pth.tar'
-                    if os.path.exists(checkpoint_file):
-                        shutil.copyfile(checkpoint_file, target_file)
+            #if saver is not None:
+            #    # save proper checkpoint with eval metric
+            #    save_metric = train_metrics[eval_metric]
+            #    best_metric, best_epoch = saver.save_checkpoint(epoch, metric=save_metric)
+            #    if args.interval_saved_epochs is not None and epoch % args.interval_saved_epochs == 0:
+            #        # only the last {args.checkpoint_hist} checkpoints will be kept
+            #        # this makes checkpoint every args.interval_saved_epochs to be saved
+            #        if args.output:
+            #            checkpoint_file = f'{args.output}/{args.experiment}/checkpoint-{epoch}.pth.tar'
+            #            target_file = f'{args.output}/{args.experiment}/held-checkpoint-{epoch}.pth.tar'
+            #        else:
+            #            checkpoint_file = f'output/train/{args.experiment}/checkpoint-{epoch}.pth.tar'
+            #            target_file = f'output/train/{args.experiment}/held-checkpoint-{epoch}.pth.tar'
+            #        if os.path.exists(checkpoint_file):
+            #            shutil.copyfile(checkpoint_file, target_file)
 
     except KeyboardInterrupt:
         pass
