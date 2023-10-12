@@ -17,6 +17,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 import shutil
+import math
 
 import torch
 import torch.nn as nn
@@ -258,7 +259,7 @@ parser.add_argument('--no-prefetcher', action='store_true', default=False,
                     help='disable fast prefetcher')
 parser.add_argument('--output', default='', type=str, metavar='PATH',
                     help='path to output folder (default: none, current dir)')
-parser.add_argument('--experiment', default='', type=str, metavar='NAME',
+parser.add_argument('--experiment', default=None, type=str, metavar='NAME',
                     help='name of train experiment, name of sub-folder for output')
 parser.add_argument('--eval-metric', default='top1', type=str, metavar='EVAL_METRIC',
                     help='Best metric (default: "top1"')
@@ -390,8 +391,8 @@ def main():
                                         weight_decay=args.weight_decay,
                                         graft_type=grafting)
         optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams)
-    else:
-        optimizer = create_optimizer_v2(model, **optimizer_kwargs(cfg=args))
+    elif args.opt == 'adamw':
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
 
     # setup automatic mixed-precision (AMP) loss scaling and op casting
     amp_autocast = suppress  # do nothing
@@ -626,14 +627,11 @@ def main():
     saver = None
     output_dir = None
     if args.rank == 0:
-        if args.experiment:
-            exp_name = args.experiment
-        else:
-            exp_name = '-'.join([
-                datetime.now().strftime("%Y%m%d-%H%M%S"),
-                safe_model_name(args.model),
-                str(data_config['input_size'][-1])
-            ])
+        exp_name = '-'.join([
+            datetime.now().strftime("%Y%m%d-%H%M%S"),
+            safe_model_name(args.model),
+            str(data_config['input_size'][-1])
+        ])
         output_dir = get_outdir(args.output if args.output else './output/train', exp_name)
         decreasing = True if eval_metric == 'loss' else False
         saver = CheckpointSaver(
@@ -777,7 +775,9 @@ def train_one_epoch(
                         data_time=data_time_m))
 
                 if args.log_wandb:
-                    wandb.log({'iter': num_updates, 'lr': lr})
+                    wandb.log({'iter': num_updates, 'lr': lr, 'loss':losses_m.val})
+                if math.isnan(losses_m.val):
+                    break
 
                 if args.save_images and output_dir:
                     torchvision.utils.save_image(

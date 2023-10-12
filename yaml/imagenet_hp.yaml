@@ -1,0 +1,72 @@
+program: pretrain.py
+method: grid
+metric:
+  name: train/loss
+  goal: minimize
+parameters:
+  train_data_dir:
+    value: /mnt/nfs/datasets/ILSVRC2012/train/
+  eval_data_dir:
+    value: /mnt/nfs/datasets/ILSVRC2012/val/
+  model:
+    value: deit_tiny_patch16_224
+  sched:
+    value: cosine_iter
+  epochs:
+    value: 90
+  lr:
+    values: [1e-3,1e-2]
+  beta2:
+    values: [0.99,0.85]
+  weight-decay:
+    values: [0,0.05]
+  batch-size:
+    value: 128
+  opt:
+    values: ['shampoo', 'adamw']
+  num-classes:
+    value: 1000
+  warmup-epochs:
+    value: 5
+  cooldown-epochs:
+    value: 0
+  smoothing:
+    value: 0.1
+  drop-path:
+    value: 0.1
+  aa:
+    value: rand-m9-mstd0.5-inc1
+  repeated-aug:
+    value: True
+  mixup:
+    value: 0.8
+  cutmix:
+    value: 1.0
+  reprob:
+    value: 0.25
+  remode:
+    value: pixel
+  interpolation:
+    value: bicubic
+  hflip:
+    value: 0.0
+  workers:
+    value: 16
+  eval-metric:
+    value: loss
+  interval_saved_epochs:
+    value: 10
+  output:
+    value: ./output/pretrain
+  log-wandb:
+    value: True
+  grafting:
+    values: ['AdaGrad']
+command:
+  - ${env}
+  - mpirun
+  - -np
+  - 4
+  - python
+  - ${program}
+  - ${args_no_boolean_flags}
