@@ -508,7 +508,7 @@ def ComputePower(mat_g, p,
         alpha = -1.0/p
         max_ev, _, _ = PowerIter(mat_g)
         ridge_epsilon *= max_ev
-        mat_g += ridge_epsilon * identity
+        mat_g = mat_g + ridge_epsilon * identity
         z = (1 + p) / (2 * torch.norm(mat_g))
         # The best value for z is
         # (1 + p) * (c_max^{1/p} - c_min^{1/p}) /
