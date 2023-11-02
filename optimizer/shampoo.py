@@ -68,6 +68,8 @@ class ShampooHyperParams:
         gradient_value_clip: float = -1
         # Nesterov momentum
         reuse_matrix: bool = False
+        # Jorge
+        use_jorge: bool = False
 
 
 class Graft:
@@ -254,7 +256,10 @@ class Preconditioner:
                         for i in range(rank):
                                 axes = list(range(i)) + list(range(i + 1, rank))
                                 stat = torch.tensordot(grad, grad, [axes, axes])
-                                self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
+                                if self._hps.use_jorge:
+                                        self.statistics[j*rank + i].add_(stat, alpha=1)
+                                else:
+                                        self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
 
         def exponent_for_preconditioner(self):
                 """Returns exponent to use for inverse-pth root M^{-1/p}."""
@@ -271,7 +276,12 @@ class Preconditioner:
                                initial_matrix = self.preconditioners[i]
                         else:
                                initial_matrix = None
-                        self.preconditioners[i] = ComputePower(
+                        if self._hps.use_jorge:
+                                self.preconditioners[i] = ComputeJorge(
+                                       stat, self.preconditioners[i], exp, ridge_epsilon=eps
+                                )
+                        else:
+                                self.preconditioners[i] = ComputePower(
                                         stat, exp, ridge_epsilon=eps, initial_matrix = initial_matrix)
 
         def preconditioned_grad(self, grad):
@@ -633,3 +643,8 @@ def merge_grads(state, grads):
         grads = conc_grads
     assert len(grads) == 1
     return grads[0]
+
+
+def ComputeJorge(stat, prev_stat, exp, ridge_epsilon, beta2):
+        X = torch.pow(prev_stat, 4)@stat
+        return
