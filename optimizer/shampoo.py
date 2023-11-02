@@ -257,7 +257,7 @@ class Preconditioner:
                                 axes = list(range(i)) + list(range(i + 1, rank))
                                 stat = torch.tensordot(grad, grad, [axes, axes])
                                 if self._hps.use_jorge:
-                                        self.statistics[j*rank + i].add_(stat, alpha=1)
+                                        self.statistics[j*rank + i].mul_(0).add_(stat, alpha=1)
                                 else:
                                         self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
 
@@ -278,7 +278,7 @@ class Preconditioner:
                                initial_matrix = None
                         if self._hps.use_jorge:
                                 self.preconditioners[i] = ComputeJorge(
-                                       stat, self.preconditioners[i], exp, ridge_epsilon=eps
+                                        stat, self.preconditioners[i], beta2=self._hps.beta2
                                 )
                         else:
                                 self.preconditioners[i] = ComputePower(
@@ -644,7 +644,13 @@ def merge_grads(state, grads):
     assert len(grads) == 1
     return grads[0]
 
+def eye_like(tensor):
+    return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
 
-def ComputeJorge(stat, prev_stat, exp, ridge_epsilon, beta2):
+def ComputeJorge(stat, prev_stat, beta2):
+        beta2_dash = torch.norm(stat, p='fro') / {torch.norm(stat, p='fro') + 1}
+        if beta2_dash > beta2:
+               beta2 = beta2_dash
         X = torch.pow(prev_stat, 4)@stat
-        return
+        mat_root = (beta2**-0.25) @ stat @ (eye_like(X) - {(1-beta2)/(4*beta2)} * X + {5*(1-beta2)**2/(32*beta2**2)}*torch.pow(X,2))
+        return mat_root
