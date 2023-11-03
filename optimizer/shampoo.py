@@ -648,9 +648,9 @@ def eye_like(tensor):
     return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
 
 def ComputeJorge(stat, prev_stat, beta2):
-        beta2_dash = torch.norm(stat, p='fro') / {torch.norm(stat, p='fro') + 1}
+        beta2_dash = torch.norm(stat, p='fro') / (torch.norm(stat, p='fro') + 1)
         if beta2_dash > beta2:
-               beta2 = beta2_dash
+            beta2 = beta2_dash
         X = torch.pow(prev_stat, 4)@stat
-        mat_root = (beta2**-0.25) @ stat @ (eye_like(X) - {(1-beta2)/(4*beta2)} * X + {5*(1-beta2)**2/(32*beta2**2)}*torch.pow(X,2))
+        mat_root = (beta2**-0.25) * prev_stat @ (eye_like(X) - ((1-beta2)/(4*beta2)) * X + (5*(1-beta2)**2/(32*beta2**2))*torch.pow(X,2))
         return mat_root
