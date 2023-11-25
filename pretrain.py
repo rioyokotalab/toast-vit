@@ -783,7 +783,6 @@ def train_one_epoch(
                 if args.log_wandb:
                     log_dict = {'epoch' : epoch, 'iter': num_updates, 'lr': lr, 'loss':losses_m.val}
                     if args.opt == 'shampoo':
-                        print(optimizer.norm_dict)
                         log_dict['Norm/'] = optimizer.norm_dict
                     wandb.log(log_dict)
                 if math.isnan(losses_m.val):
