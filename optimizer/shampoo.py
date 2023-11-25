@@ -428,6 +428,7 @@ class Shampoo(optim.Optimizer):
                 self.norm_dict = {
                         'original_grad_norm' : original_grad_norm_sum**0.5,
                         'shampoo_norm' : shampoo_norm_sum**0.5,
+                        'grad_norm_ratio' : (shampoo_norm_sum**0.5) / (original_grad_norm_sum**0.5),
                         'graft_norm' : graft_norm_sum**0.5
                 }
 
