@@ -277,7 +277,10 @@ parser.add_argument('--beta2', default=0.85, type=float)
 parser.add_argument('--matrix_eps', default=1.0e-6, type=float)
 parser.add_argument('--start_preconditioning_step', default=25, type=int)
 parser.add_argument('--preconditioning_compute_steps', default=10, type=int)
-parser.add_argument('--statistics_compute_steps', default=100, type=int)
+parser.add_argument('--statistics_compute_steps', default=10, type=int)
+parser.add_argument('--early_phase_ratio', default=0, type=float)
+parser.add_argument('--early_preconditioning_compute_steps', default=10, type=int)
+parser.add_argument('--early_statistics_compute_steps', default=100, type=int)
 parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
 parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
@@ -373,66 +376,6 @@ def main():
 
     # move model to GPU
     model.cuda()
-
-    if args.opt == 'shampoo':
-        if args.grafting == 'AdaGrad':
-            grafting = LayerwiseGrafting.ADAGRAD
-        elif args.grafting == 'SGD':
-            grafting = LayerwiseGrafting.SGD
-        elif args.grafting == 'None':
-            grafting = LayerwiseGrafting.NONE
-        hyperparams = ShampooHyperParams(beta2 = args.beta2,
-                                        matrix_eps = args.matrix_eps, 
-                                        start_preconditioning_step = args.start_preconditioning_step,
-                                        preconditioning_compute_steps = args.preconditioning_compute_steps,
-                                        statistics_compute_steps = args.statistics_compute_steps,
-                                        block_size = args.shampoo_block_size,
-                                        gradient_value_clip=args.gradient_value_clip,
-                                        weight_decay=args.weight_decay,
-                                        graft_type=grafting)
-        optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams)
-    elif args.opt == 'adamw':
-        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
-
-    # setup automatic mixed-precision (AMP) loss scaling and op casting
-    amp_autocast = suppress  # do nothing
-    loss_scaler = None
-    if use_amp == 'apex':
-        model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
-        loss_scaler = ApexScaler()
-        if args.rank == 0:
-            _logger.info('Using NVIDIA APEX AMP. Training in mixed precision.')
-    elif use_amp == 'native':
-        amp_autocast = torch.cuda.amp.autocast
-        loss_scaler = NativeScaler()
-        if args.rank == 0:
-            _logger.info('Using native Torch AMP. Training in mixed precision.')
-    else:
-        if args.rank == 0:
-            _logger.info('AMP not enabled. Training in float32.')
-
-    # optionally resume from a checkpoint
-    resume_epoch = None
-    if args.resume:
-        resume_epoch = resume_checkpoint(
-            model, args.resume,
-            optimizer=None if args.no_resume_opt else optimizer,
-            loss_scaler=None if args.no_resume_opt else loss_scaler,
-            log_info=args.rank == 0)
-        if args.rank == 0:
-            _logger.info('resume epoch: {}'.format(resume_epoch))
-
-    # setup distributed training
-    if args.distributed:
-        if has_apex and use_amp != 'native':
-            # Apex DDP preferred unless native amp is activated
-            if args.rank == 0:
-                _logger.info("Using NVIDIA APEX DistributedDataParallel.")
-            model = ApexDDP(model, delay_allreduce=True)
-        else:
-            if args.rank == 0:
-                _logger.info("Using native Torch DistributedDataParallel.")
-            model = NativeDDP(model, device_ids=[args.local_rank])  # can use device str in Torch >= 1.1
 
     # Choose the DataSet Selector
     if args.webdataset:
@@ -585,6 +528,69 @@ def main():
         crop_pct=data_config['crop_pct'],
         pin_memory=args.pin_mem,
         )
+
+    if args.opt == 'shampoo':
+        if args.grafting == 'AdaGrad':
+            grafting = LayerwiseGrafting.ADAGRAD
+        elif args.grafting == 'SGD':
+            grafting = LayerwiseGrafting.SGD
+        elif args.grafting == 'None':
+            grafting = LayerwiseGrafting.NONE
+        hyperparams = ShampooHyperParams(beta2 = args.beta2,
+                                        matrix_eps = args.matrix_eps, 
+                                        start_preconditioning_step = args.start_preconditioning_step,
+                                        preconditioning_compute_steps = args.preconditioning_compute_steps,
+                                        statistics_compute_steps = args.statistics_compute_steps,
+                                        block_size = args.shampoo_block_size,
+                                        gradient_value_clip=args.gradient_value_clip,
+                                        weight_decay=args.weight_decay,
+                                        graft_type=grafting,
+                                        early_phase_iters = int( len(loader_train) * (args.epochs + args.cooldown_epochs) * args.early_phase_ratio ),
+                                        early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
+                                        early_statistics_compute_steps = args.early_statistics_compute_steps,)
+        optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams)
+    elif args.opt == 'adamw':
+        optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
+
+    # setup automatic mixed-precision (AMP) loss scaling and op casting
+    amp_autocast = suppress  # do nothing
+    loss_scaler = None
+    if use_amp == 'apex':
+        model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
+        loss_scaler = ApexScaler()
+        if args.rank == 0:
+            _logger.info('Using NVIDIA APEX AMP. Training in mixed precision.')
+    elif use_amp == 'native':
+        amp_autocast = torch.cuda.amp.autocast
+        loss_scaler = NativeScaler()
+        if args.rank == 0:
+            _logger.info('Using native Torch AMP. Training in mixed precision.')
+    else:
+        if args.rank == 0:
+            _logger.info('AMP not enabled. Training in float32.')
+
+    # optionally resume from a checkpoint
+    resume_epoch = None
+    if args.resume:
+        resume_epoch = resume_checkpoint(
+            model, args.resume,
+            optimizer=None if args.no_resume_opt else optimizer,
+            loss_scaler=None if args.no_resume_opt else loss_scaler,
+            log_info=args.rank == 0)
+        if args.rank == 0:
+            _logger.info('resume epoch: {}'.format(resume_epoch))
+
+    # setup distributed training
+    if args.distributed:
+        if has_apex and use_amp != 'native':
+            # Apex DDP preferred unless native amp is activated
+            if args.rank == 0:
+                _logger.info("Using NVIDIA APEX DistributedDataParallel.")
+            model = ApexDDP(model, delay_allreduce=True)
+        else:
+            if args.rank == 0:
+                _logger.info("Using native Torch DistributedDataParallel.")
+            model = NativeDDP(model, device_ids=[args.local_rank])  # can use device str in Torch >= 1.1
 
     # setup learning rate schedule and starting epoch
     iter_per_epoch = len(loader_train)
@@ -775,7 +781,11 @@ def train_one_epoch(
                         data_time=data_time_m))
 
                 if args.log_wandb:
-                    wandb.log({'iter': num_updates, 'lr': lr, 'loss':losses_m.val})
+                    log_dict = {'epoch' : epoch, 'iter': num_updates, 'lr': lr, 'loss':losses_m.val}
+                    if args.opt == 'shampoo':
+                        print(optimizer.norm_dict)
+                        log_dict['Norm/'] = optimizer.norm_dict
+                    wandb.log(log_dict)
                 if math.isnan(losses_m.val):
                     break
 
