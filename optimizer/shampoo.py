@@ -446,6 +446,8 @@ class Shampoo(optim.Optimizer):
                         'graft_norm' : graft_norm_sum**0.5
                 }
 
+                self.cosine_dict = {}
+                
                 if shampoo_prev_grad is not None:
                        self.cosine_dict['prev_cos_sim_mean'] = sum(cosine_sim) / len(cosine_sim)
                        self.cosine_dict['prev_cos_sim_not_1_count'] =count_non_ones(cosine_sim)

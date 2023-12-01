@@ -784,6 +784,7 @@ def train_one_epoch(
                     log_dict = {'epoch' : epoch, 'iter': num_updates, 'lr': lr, 'loss':losses_m.val}
                     if args.opt == 'shampoo':
                         log_dict['Norm/'] = optimizer.norm_dict
+                        log_dict['Cosine/'] = optimizer.cosine_dict
                     wandb.log(log_dict)
                 if math.isnan(losses_m.val):
                     break
