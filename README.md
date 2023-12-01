@@ -145,10 +145,10 @@ Basically, you can run the python script ```pretrain.py``` with the following co
     ```bash
     $ mpirun -npernode 4 -np 4 \
       python pretrain.py --train_data_dir /mnt/nfs/datasets/ILSVRC2012/train/ --eval_data_dir /mnt/nfs/datasets/ILSVRC2012/val/ \
-        --model deit_base_patch16_224 --experiment pretrain_deit_base_ExFractalDB21000_1.0e-3 \
+        --model deit_tiny_patch16_224 --experiment pretrain_deit_base_ExFractalDB21000_1.0e-3 \
         --input-size 3 224 224 \
         --sched cosine_iter --epochs 90 --lr 1.0e-3 --weight-decay 0.05 \
-        --batch-size 128 --opt shampoo --num-classes 21000 \
+        --batch-size 128 --opt shampoo --num-classes 1000 \
         --warmup-epochs 5 --cooldown-epochs 0 \
         --smoothing 0.1 --drop-path 0.1 --aa rand-m9-mstd0.5-inc1 \
         --repeated-aug --mixup 0.8 --cutmix 1.0 --reprob 0.25 \
@@ -156,6 +156,23 @@ Basically, you can run the python script ```pretrain.py``` with the following co
         -j 16 --eval-metric loss \
         --interval_saved_epochs 10 --output ./output/pretrain \
         --log-wandb
+    ```
+
+    ```bash
+    $ mpirun -npernode 4 -np 4 \
+      python pretrain.py --train_data_dir /mnt/nfs/datasets/CIFAR/cifar100/train/ --eval_data_dir /mnt/nfs/datasets/CIFAR/cifar100/val/ \
+        --model resnet18 --experiment pretrain_deit_base_ExFractalDB21000_1.0e-3 \
+        --input-size 3 32 32 \
+        --sched cosine_iter --epochs 90 --lr 1.0e-3 --weight-decay 0.05 \
+        --batch-size 128 --opt shampoo --num-classes 100 \
+        --warmup-epochs 5 --cooldown-epochs 0 \
+        --smoothing 0.1 --drop-path 0.1 --aa rand-m9-mstd0.5-inc1 \
+        --repeated-aug --mixup 0.8 --cutmix 1.0 --reprob 0.25 \
+        --remode pixel --interpolation bicubic --hflip 0.0 \
+        -j 16 --eval-metric loss \
+        --interval_saved_epochs 10 --output ./output/pretrain \
+        --log-wandb --opt shampoo
+        --start_preconditioning_step 0
     ```
 
     > **Note**

@@ -351,8 +351,7 @@ class Shampoo(optim.Optimizer):
                 hps = self.hps
                 original_grad_norm_sum = 0
                 shampoo_norm_sum = 0
-                prev_shampoo_norm_sum = 0
-                inner_sum = 0
+                cosine_sim = []
                 graft_norm_sum = 0
 
                 for group in self.param_groups:
@@ -410,9 +409,10 @@ class Shampoo(optim.Optimizer):
 
                                 # For Cosine Similarity
                                 if shampoo_prev_grad is not None:
-                                        prev_shampoo_norm_sum += float(torch.norm(shampoo_prev_grad)**2)
-                                        inner_sum += float(torch.dot(shampoo_prev_grad, shampoo_grad))
-
+                                        cos = torch.nn.CosineSimilarity(dim=0)
+                                        cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
+                                        cosine_sim.append(cosine_sim_value)
+                                
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
                                         shampoo_grad.add_(p.data, alpha=self.hps.weight_decay)
@@ -447,9 +447,17 @@ class Shampoo(optim.Optimizer):
                 }
 
                 if shampoo_prev_grad is not None:
-                       prev_cos = inner_sum / (shampoo_norm_sum * prev_shampoo_norm_sum)**0.5
-                       self.norm_dict['prev_cos_sim'] = prev_cos
-                       self.norm_dict['prev_norm_ratio'] = (shampoo_norm_sum / prev_shampoo_norm_sum)**0.5
+                       self.norm_dict['prev_cos_sim_mean'] = sum(cosine_sim) / len(cosine_sim)
+                       self.norm_dict['prev_cos_sim_min_1'] = min(cosine_sim)
+                       self.norm_dict['prev_cos_sim_not_1_count'] =count_non_ones(cosine_sim)
+                       self.norm_dict['prev_cos_sim_not_1_ratio'] =count_non_ones(cosine_sim) / len(cosine_sim)
+
+def count_non_ones(lst):
+    count = 0
+    for element in lst:
+        if (element - 1) <= 1e-3:
+            count += 1
+    return count
 
 @torch.no_grad()
 def PowerIter(mat_g, error_tolerance=1e-6, num_iters=100):
