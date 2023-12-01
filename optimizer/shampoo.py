@@ -450,10 +450,15 @@ class Shampoo(optim.Optimizer):
 
                 if shampoo_prev_grad is not None:
                        self.cosine_dict['prev_cos_sim_mean'] = float(sum(cosine_sim) / len(cosine_sim))
-                       self.cosine_dict['prev_cos_sim_not_1_count'] =count_non_ones(cosine_sim)
-                       self.cosine_dict['prev_cos_sim_not_1_ratio'] =float(count_non_ones(cosine_sim) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-3'] =count_non_ones(cosine_sim, thres = 1e-3)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-3'] =float(count_non_ones(cosine_sim, thres = 1e-3) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-2'] =count_non_ones(cosine_sim, thres = 1e-2)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-2'] =float(count_non_ones(cosine_sim, thres = 1e-2) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-1'] =count_non_ones(cosine_sim, thres = 1e-1)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-1'] =float(count_non_ones(cosine_sim, thres = 1e-1) / len(cosine_sim))
 
                        sorted_nums = sorted(cosine_sim, reverse=False)
+                       self.cosine_dict['prev_cos_sim_max_1'] = float(sorted_nums[-1])
                        self.cosine_dict['prev_cos_sim_min_1'] = float(sorted_nums[0])
                        self.cosine_dict['prev_cos_sim_min_2'] = float(sorted_nums[1])
                        self.cosine_dict['prev_cos_sim_min_3'] = float(sorted_nums[2])
@@ -462,10 +467,10 @@ class Shampoo(optim.Optimizer):
 
                        print(self.cosine_dict)
 
-def count_non_ones(lst):
+def count_non_ones(lst, thres = 1e-3):
     count = 0
     for element in lst:
-        if abs(1 - element) >= 1e-3:
+        if (1 - element) >= thres:
             count += 1
     return count
 
