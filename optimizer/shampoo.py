@@ -351,6 +351,8 @@ class Shampoo(optim.Optimizer):
                 hps = self.hps
                 original_grad_norm_sum = 0
                 shampoo_norm_sum = 0
+                prev_shampoo_norm_sum = 0
+                inner_sum = 0
                 graft_norm_sum = 0
 
                 for group in self.param_groups:
@@ -369,6 +371,13 @@ class Shampoo(optim.Optimizer):
 
                                 preconditioner = state[PRECONDITIONER]
                                 graft = state[GRAFT]
+
+                                shampoo_prev_grad = None
+                                if state[STEP] >= self.hps.start_preconditioning_step:
+                                        if state[STEP] >= hps.early_phase_iters and state[STEP] % hps.preconditioning_compute_steps == 0:
+                                                shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
+                                        if state[STEP] < hps.early_phase_iters and state[STEP] % hps.early_preconditioning_compute_steps == 0:
+                                                shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
 
                                 # Gather statistics, compute preconditioners
                                 graft.add_statistics(grad)
@@ -398,6 +407,11 @@ class Shampoo(optim.Optimizer):
                                 original_grad_norm_sum += float(original_grad_norm**2)
                                 shampoo_norm_sum += float(shampoo_norm**2)
                                 graft_norm_sum += float(graft_norm**2)
+
+                                # For Cosine Similarity
+                                if shampoo_prev_grad is not None:
+                                        prev_shampoo_norm_sum += float(torch.norm(shampoo_prev_grad)**2)
+                                        inner_sum += float(torch.dot(shampoo_prev_grad, shampoo_grad))
 
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
@@ -432,6 +446,10 @@ class Shampoo(optim.Optimizer):
                         'graft_norm' : graft_norm_sum**0.5
                 }
 
+                if shampoo_prev_grad is not None:
+                       prev_cos = inner_sum / (shampoo_norm_sum * prev_shampoo_norm_sum)**0.5
+                       self.norm_dict['prev_cos_sim'] = prev_cos
+                       self.norm_dict['prev_norm_ratio'] = (shampoo_norm_sum / prev_shampoo_norm_sum)**0.5
 
 @torch.no_grad()
 def PowerIter(mat_g, error_tolerance=1e-6, num_iters=100):
