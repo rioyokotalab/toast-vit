@@ -479,14 +479,15 @@ def main():
 
     else:
         if args.use_cifar:
-            if args.dataset == 'CIFAR10':
+            datasetname = args.dataset.lower()
+            if datasetname == 'cifar10':
                 dataset_train = torchvision.datasets.CIFAR10(root='data/',
                                             train=True,
                                             download=True)
                 dataset_eval = torchvision.datasets.CIFAR10(root='data/',
                                             train=False,
                                             download=True)
-            elif args.dataset == 'CIFAR100':
+            elif datasetname == 'cifar100':
                 dataset_train = torchvision.datasets.CIFAR100(root='data/',
                                             train=True,
                                             download=True)
