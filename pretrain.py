@@ -18,6 +18,7 @@ from contextlib import suppress
 from datetime import datetime
 import shutil
 import math
+import random
 
 import torch
 import torch.nn as nn
@@ -636,7 +637,8 @@ def main():
         exp_name = '-'.join([
             datetime.now().strftime("%Y%m%d-%H%M%S"),
             safe_model_name(args.model),
-            str(data_config['input_size'][-1])
+            str(data_config['input_size'][-1]),
+            str(random.randint(10000, 99999))
         ])
         output_dir = get_outdir(args.output if args.output else './output/train', exp_name)
         decreasing = True if eval_metric == 'loss' else False
