@@ -333,6 +333,7 @@ class Shampoo(optim.Optimizer):
                                 hyperparams=ShampooHyperParams()):
                 defaults = dict(lr=lr, momentum=momentum)
                 self.hps = hyperparams
+                self.cosine_dict = {}
                 super(Shampoo, self).__init__(params, defaults)
 
         def init_var_state(self, var, state):
@@ -445,8 +446,6 @@ class Shampoo(optim.Optimizer):
                         'grad_norm_ratio' : (shampoo_norm_sum**0.5) / (original_grad_norm_sum**0.5),
                         'graft_norm' : graft_norm_sum**0.5
                 }
-
-                self.cosine_dict = {}
 
                 if shampoo_prev_grad is not None:
                        self.cosine_dict['prev_cos_sim_mean'] = float(sum(cosine_sim) / len(cosine_sim))
