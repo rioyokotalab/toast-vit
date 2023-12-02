@@ -41,6 +41,10 @@ from scheduler.scheduler_factory import create_scheduler
 from utils.summary import original_update_summary
 from optimizer.shampoo import ShampooHyperParams, Shampoo, LayerwiseGrafting
 
+from models.resnet import ResNet18, ResNet34, ResNet50
+from models.vgg import VGG
+from models.wideresnet import WideResNet
+
 def print0(message):
     if dist.is_initialized():
         if dist.get_rank() == 0:
@@ -286,6 +290,10 @@ parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
 parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
 
+# CIFAR Dataset
+parser.add_argument('--use_cifar', action='store_true', default=False,
+                    help='use cifar dataset')
+
 def _parse_args():
     args = parser.parse_args()
 
@@ -349,7 +357,21 @@ def main():
             _logger.warning("You've requested to log metrics to wandb but package not found. "
                             "Metrics not being logged to wandb, try `pip install wandb`")
 
-    model = create_model(
+    if args.use_cifar:
+        if args.args.model == 'resnet18':
+            model = ResNet18(num_classes=args.num_classes)
+        elif args.args.model == 'resnet34':
+            model = ResNet34(num_classes=args.num_classes)
+        elif args.args.model == 'resnet50':
+            model = ResNet50(num_classes=args.num_classes)
+        elif args.args.model == 'wideresnet16':
+            model = WideResNet(depth=16, num_classes=args.num_classes, widen_factor=8, dropRate=args.drop)
+        elif args.args.model == 'wideresnet28':
+            model = WideResNet(depth=28, num_classes=args.num_classes, widen_factor=10, dropRate=args.drop)
+        elif 'VGG' in args.model:
+            model = VGG(vgg_name=args.model)
+    else:
+        model = create_model(
         args.model,
         pretrained=args.pretrained,
         num_classes=args.num_classes,
