@@ -825,6 +825,14 @@ def train_one_epoch(
                         log_dict['Norm/'] = optimizer.norm_dict
                         log_dict['Cosine/'] = optimizer.cosine_dict
                         log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
+                        log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
+                        max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
+                        if len(max_eigen_list) > 0:
+                            log_dict['MaxEigen/'] = {
+                            'Max' : max(max_eigen_list),
+                            'Min' : min(max_eigen_list),
+                            'Mean' : sum(max_eigen_list) / len(max_eigen_list)
+                            }
                     wandb.log(log_dict)
                 if math.isnan(losses_m.val):
                     break
@@ -905,6 +913,14 @@ def validate(model, loader, loss_fn, args, amp_autocast=suppress, log_suffix='')
     metrics = OrderedDict([('loss', losses_m.avg), ('top1', top1_m.avg), ('top5', top5_m.avg)])
 
     return metrics
+
+def create_max_eigen_list(eig_dict):
+    eig_list = []
+    for dic1 in eig_dict.values():
+        for dic2 in dic1.values():
+            for eig in dic2.values():
+                eig_list.append(eig)
+    return eig_list
 
 if __name__ == '__main__':
     main()
