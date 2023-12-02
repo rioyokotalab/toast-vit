@@ -44,6 +44,7 @@ from optimizer.shampoo import ShampooHyperParams, Shampoo, LayerwiseGrafting
 from models.resnet import ResNet18, ResNet34, ResNet50
 from models.vgg import VGG
 from models.wideresnet import WideResNet
+from torchvision import transforms
 
 def print0(message):
     if dist.is_initialized():
@@ -477,30 +478,67 @@ def main():
         # but some frameworks care about it.
         loader_train.length = number_of_batches
 
+    elif args.use_cifar:
+        from data.autoaugment import CIFAR10Policy
+        from data.cutout import Cutout
+        datasetname = args.dataset.lower()
+        normalize = transforms.Normalize(   mean=[x / 255.0 for x in [125.3, 123.0, 113.9]],
+                                            std=[x / 255.0 for x in [63.0, 62.1, 66.7]])
+        train_transform = transforms.Compose([
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                CIFAR10Policy(),
+                transforms.ToTensor(),
+                normalize
+        ])
+        val_transform = transforms.Compose([
+                transforms.Resize((32, 32)),
+                transforms.ToTensor(),
+                normalize
+        ])
+
+        if datasetname == 'cifar10':
+            cutout = Cutout(n_holes=1, length=16)
+            dataset_train = torchvision.datasets.CIFAR10(root='data/',
+                                        train=True,
+                                        download=True,
+                                        transform = train_transform)
+            dataset_eval = torchvision.datasets.CIFAR10(root='data/',
+                                        train=False,
+                                        download=True,
+                                        transform = val_transform)
+        elif datasetname == 'cifar100':
+            cutout = Cutout(n_holes=1, length=8)
+            dataset_train = torchvision.datasets.CIFAR100(root='data/',
+                                        train=True,
+                                        download=True,
+                                        transform = train_transform)
+            dataset_eval = torchvision.datasets.CIFAR100(root='data/',
+                                        train=False,
+                                        download=True,
+                                        transform = val_transform)
+        
+        loader_train = torch.utils.data.DataLoader(dataset=dataset_train,
+                                                    batch_size=args.batch_size,
+                                                    shuffle=True,
+                                                    pin_memory=True,
+                                                    num_workers=args.workers)
+        loader_eval = torch.utils.data.DataLoader(dataset=dataset_eval,
+                                                    batch_size=args.batch_size,
+                                                    shuffle=False,
+                                                    pin_memory=True,
+                                                    num_workers=args.workers)
+        collate_fn = None
+        mixup_fn = None
+        mixup_active = False
+
     else:
-        if args.use_cifar:
-            datasetname = args.dataset.lower()
-            if datasetname == 'cifar10':
-                dataset_train = torchvision.datasets.CIFAR10(root='data/',
-                                            train=True,
-                                            download=True)
-                dataset_eval = torchvision.datasets.CIFAR10(root='data/',
-                                            train=False,
-                                            download=True)
-            elif datasetname == 'cifar100':
-                dataset_train = torchvision.datasets.CIFAR100(root='data/',
-                                            train=True,
-                                            download=True)
-                dataset_eval = torchvision.datasets.CIFAR100(root='data/',
-                                            train=False,
-                                            download=True)
-        else:
-            dataset_train = create_dataset(
-                args.dataset,
-                root=args.train_data_dir, split=args.train_split, is_training=True,
-                batch_size=args.batch_size, repeats=args.epoch_repeats)
-            dataset_eval = create_dataset(
-                args.dataset, root=args.eval_data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
+        dataset_train = create_dataset(
+            args.dataset,
+            root=args.train_data_dir, split=args.train_split, is_training=True,
+            batch_size=args.batch_size, repeats=args.epoch_repeats)
+        dataset_eval = create_dataset(
+            args.dataset, root=args.eval_data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
 
         # setup mixup / cutmix
         collate_fn = None
