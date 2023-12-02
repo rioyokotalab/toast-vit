@@ -477,22 +477,29 @@ def main():
         # but some frameworks care about it.
         loader_train.length = number_of_batches
 
-    elif args.use_cifar:
-        import data.dataset
-        if args.dataset == 'CIFAR10':
-            dataset = data.dataset.CIFAR10(args=args)
-        elif args.dataset == 'CIFAR100':
-            dataset = data.dataset.CIFAR100(args=args)
-        dataset_train = dataset.train_dataset
-        loader_train = dataset.train_loader
-        dataset_eval = dataset.val_dataset
-        loader_eval = dataset.val_loader
-
     else:
-        dataset_train = create_dataset(
-            args.dataset,
-            root=args.train_data_dir, split=args.train_split, is_training=True,
-            batch_size=args.batch_size, repeats=args.epoch_repeats)
+        if args.use_cifar:
+            if args.dataset == 'CIFAR10':
+                dataset_train = torchvision.datasets.CIFAR10(root='data/',
+                                            train=True,
+                                            download=True)
+                dataset_eval = torchvision.datasets.CIFAR10(root='data/',
+                                            train=False,
+                                            download=True)
+            elif args.dataset == 'CIFAR100':
+                dataset_train = torchvision.datasets.CIFAR100(root='data/',
+                                            train=True,
+                                            download=True)
+                dataset_eval = torchvision.datasets.CIFAR100(root='data/',
+                                            train=False,
+                                            download=True)
+        else:
+            dataset_train = create_dataset(
+                args.dataset,
+                root=args.train_data_dir, split=args.train_split, is_training=True,
+                batch_size=args.batch_size, repeats=args.epoch_repeats)
+            dataset_eval = create_dataset(
+                args.dataset, root=args.eval_data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
 
         # setup mixup / cutmix
         collate_fn = None
@@ -545,9 +552,6 @@ def main():
             repeated_aug=args.repeated_aug
         )
     
-        dataset_eval = create_dataset(
-        args.dataset, root=args.eval_data_dir, split=args.val_split, is_training=False, batch_size=args.batch_size)
-
         loader_eval = create_loader(
         dataset_eval,
         input_size=data_config['input_size'],
