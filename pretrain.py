@@ -499,6 +499,7 @@ def main():
 
         if datasetname == 'cifar10':
             cutout = Cutout(n_holes=1, length=16)
+            train_transform.transforms.append(cutout)
             dataset_train = torchvision.datasets.CIFAR10(root='data/',
                                         train=True,
                                         download=True,
@@ -509,6 +510,7 @@ def main():
                                         transform = val_transform)
         elif datasetname == 'cifar100':
             cutout = Cutout(n_holes=1, length=8)
+            train_transform.transforms.append(cutout)
             dataset_train = torchvision.datasets.CIFAR100(root='data/',
                                         train=True,
                                         download=True,
