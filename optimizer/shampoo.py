@@ -316,7 +316,8 @@ class Preconditioner:
                                 preconditioner = preconditioners_for_grad[j]
                                 precond_grad = torch.tensordot(
                                                 precond_grad, preconditioner, [[0], [0]])
-                                max_eigen_dict[i][j] = max_eigens_for_grad[j]
+                                if max_eigens_for_grad[j] is not None:
+                                        max_eigen_dict[i][j] = max_eigens_for_grad[j]
                         preconditioned_partitioned_grads.append(precond_grad)
                 merged_grad = self._partitioner.merge_partitions(
                                 preconditioned_partitioned_grads)
@@ -632,7 +633,7 @@ def ComputePower(mat_g, p,
         #         error_gt = (mat_root - ground_truth).norm() / ground_truth.norm()
         #         print(f'ComputePower: count={count}, error={error:.7f}, gt_error={error_gt:.7f}')
         torch.backends.cuda.matmul.allow_tf32 = tf32_flag
-        return mat_root, float(max_ev)
+        return mat_root, max_ev
 
 
 VAR_SHAPE = 'var_shape'

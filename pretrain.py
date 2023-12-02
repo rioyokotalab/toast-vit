@@ -919,7 +919,8 @@ def create_max_eigen_list(eig_dict):
     for dic1 in eig_dict.values():
         for dic2 in dic1.values():
             for eig in dic2.values():
-                eig_list.append(eig)
+                if eig is not None:
+                    eig_list.append(eig)
     return eig_list
 
 if __name__ == '__main__':
