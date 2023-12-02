@@ -330,10 +330,13 @@ class Shampoo(optim.Optimizer):
                                 params,
                                 lr=1.0,
                                 momentum=0.9,
-                                hyperparams=ShampooHyperParams()):
+                                hyperparams=ShampooHyperParams(),
+                                param_names = None):
                 defaults = dict(lr=lr, momentum=momentum)
                 self.hps = hyperparams
+                self.param_names = param_names
                 self.cosine_dict = {}
+                self.cosine_layer_dict = {}
                 super(Shampoo, self).__init__(params, defaults)
 
         def init_var_state(self, var, state):
@@ -410,9 +413,11 @@ class Shampoo(optim.Optimizer):
 
                                 # For Cosine Similarity
                                 if shampoo_prev_grad is not None:
-                                        cos = torch.nn.CosineSimilarity(dim=0)
-                                        cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
-                                        cosine_sim.append(cosine_sim_value)
+                                        if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p]:
+                                                cos = torch.nn.CosineSimilarity(dim=0)
+                                                cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
+                                                cosine_sim.append(cosine_sim_value)
+                                                self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                 
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
@@ -449,10 +454,10 @@ class Shampoo(optim.Optimizer):
 
                 if shampoo_prev_grad is not None:
                        self.cosine_dict['prev_cos_sim_mean'] = float(sum(cosine_sim) / len(cosine_sim))
-                       self.cosine_dict['prev_cos_sim_not_1_count_th_1e-3'] =count_non_ones(cosine_sim, thres = 1e-3)
-                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-3'] =float(count_non_ones(cosine_sim, thres = 1e-3) / len(cosine_sim))
                        self.cosine_dict['prev_cos_sim_not_1_count_th_1e-2'] =count_non_ones(cosine_sim, thres = 1e-2)
                        self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-2'] =float(count_non_ones(cosine_sim, thres = 1e-2) / len(cosine_sim))
+                       self.cosine_dict['prev_cos_sim_not_1_count_th_3e-2'] =count_non_ones(cosine_sim, thres = 3e-2)
+                       self.cosine_dict['prev_cos_sim_not_1_ratio_th_3e-2'] =float(count_non_ones(cosine_sim, thres = 3e-2) / len(cosine_sim))
                        self.cosine_dict['prev_cos_sim_not_1_count_th_1e-1'] =count_non_ones(cosine_sim, thres = 1e-1)
                        self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-1'] =float(count_non_ones(cosine_sim, thres = 1e-1) / len(cosine_sim))
 

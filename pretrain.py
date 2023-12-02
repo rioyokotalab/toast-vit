@@ -574,6 +574,7 @@ def main():
             grafting = LayerwiseGrafting.SGD
         elif args.grafting == 'None':
             grafting = LayerwiseGrafting.NONE
+        param_names = {p: f"{i.replace('.','_')}" for i, p in model.named_parameters()}
         hyperparams = ShampooHyperParams(beta2 = args.beta2,
                                         matrix_eps = args.matrix_eps, 
                                         start_preconditioning_step = args.start_preconditioning_step,
@@ -586,7 +587,7 @@ def main():
                                         early_phase_iters = int( len(loader_train) * (args.epochs + args.cooldown_epochs) * args.early_phase_ratio ),
                                         early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
                                         early_statistics_compute_steps = args.early_statistics_compute_steps,)
-        optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams)
+        optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams, param_names = param_names)
     elif args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
 
@@ -823,6 +824,7 @@ def train_one_epoch(
                     if args.opt == 'shampoo':
                         log_dict['Norm/'] = optimizer.norm_dict
                         log_dict['Cosine/'] = optimizer.cosine_dict
+                        log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
                     wandb.log(log_dict)
                 if math.isnan(losses_m.val):
                     break
