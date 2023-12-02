@@ -358,15 +358,16 @@ def main():
                             "Metrics not being logged to wandb, try `pip install wandb`")
 
     if args.use_cifar:
-        if args.args.model == 'resnet18':
+        args.input_size = [3, 32, 32]
+        if args.model == 'resnet18':
             model = ResNet18(num_classes=args.num_classes)
-        elif args.args.model == 'resnet34':
+        elif args.model == 'resnet34':
             model = ResNet34(num_classes=args.num_classes)
-        elif args.args.model == 'resnet50':
+        elif args.model == 'resnet50':
             model = ResNet50(num_classes=args.num_classes)
-        elif args.args.model == 'wideresnet16':
+        elif args.model == 'wideresnet16':
             model = WideResNet(depth=16, num_classes=args.num_classes, widen_factor=8, dropRate=args.drop)
-        elif args.args.model == 'wideresnet28':
+        elif args.model == 'wideresnet28':
             model = WideResNet(depth=28, num_classes=args.num_classes, widen_factor=10, dropRate=args.drop)
         elif 'VGG' in args.model:
             model = VGG(vgg_name=args.model)
