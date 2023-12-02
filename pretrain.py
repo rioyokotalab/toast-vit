@@ -477,8 +477,18 @@ def main():
         # but some frameworks care about it.
         loader_train.length = number_of_batches
 
+    elif args.use_cifar:
+        import data.dataset
+        if args.dataset == 'CIFAR10':
+            dataset = data.dataset.CIFAR10(args=args)
+        elif args.dataset == 'CIFAR100':
+            dataset = data.dataset.CIFAR100(args=args)
+        dataset_train = dataset.train_dataset
+        loader_train = dataset.train_loader
+        dataset_eval = dataset.val_dataset
+        loader_eval = dataset.val_loader
+
     else:
-        # create datasets with timm's dataloader
         dataset_train = create_dataset(
             args.dataset,
             root=args.train_data_dir, split=args.train_split, is_training=True,
@@ -552,7 +562,6 @@ def main():
         crop_pct=data_config['crop_pct'],
         pin_memory=args.pin_mem,
         )
-
     if args.opt == 'shampoo':
         if args.grafting == 'AdaGrad':
             grafting = LayerwiseGrafting.ADAGRAD
