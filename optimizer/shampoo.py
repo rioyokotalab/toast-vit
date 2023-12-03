@@ -421,7 +421,7 @@ class Shampoo(optim.Optimizer):
 
                                 # For Cosine Similarity
                                 if shampoo_prev_grad is not None:
-                                        if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p]:
+                                        if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                 cos = torch.nn.CosineSimilarity(dim=0)
                                                 cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
                                                 cosine_sim.append(cosine_sim_value)
