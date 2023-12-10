@@ -291,6 +291,9 @@ parser.add_argument('--shampoo_block_size', default=128, type=int)
 parser.add_argument('--gradient_value_clip', default=-1, type=float)
 parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
 
+parser.add_argument('--interval_cosine_thres', default=-1, type=float)
+parser.add_argument('--interval_scheduling_factor', default=1, type=int)
+
 # CIFAR Dataset
 parser.add_argument('--use_cifar', action='store_true', default=False,
                     help='use cifar dataset')
@@ -626,7 +629,9 @@ def main():
                                         graft_type=grafting,
                                         early_phase_iters = int( len(loader_train) * (args.epochs + args.cooldown_epochs) * args.early_phase_ratio ),
                                         early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
-                                        early_statistics_compute_steps = args.early_statistics_compute_steps,)
+                                        early_statistics_compute_steps = args.early_statistics_compute_steps,
+                                        interval_cosine_thres=args.interval_cosine_thres,
+                                        interval_scheduling_factor = args.interval_scheduling_factor)
         optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams, param_names = param_names)
     elif args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
@@ -866,6 +871,7 @@ def train_one_epoch(
                         log_dict['Cosine/'] = optimizer.cosine_dict
                         log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
                         log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
+                        log_dict['IntervalLayer/'] = optimizer.interval_layer_dict
                         max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
                         if len(max_eigen_list) > 0:
                             log_dict['MaxEigen/'] = {

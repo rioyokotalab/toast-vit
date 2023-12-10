@@ -76,6 +76,10 @@ class ShampooHyperParams:
         early_statistics_compute_steps: int = 1
         early_preconditioning_compute_steps: int = 1
 
+        # Interval Scheduling
+        interval_cosine_thres: float = -1
+        interval_scheduling_factor: int = 1
+
 class Graft:
         """Base class to perform grafting onto Shampoo. This class does no grafting.
         """
@@ -328,7 +332,7 @@ STEP = 'step'
 MOMENTUM = 'momentum'
 PRECONDITIONER = 'preconditioner'
 GRAFT = 'graft'
-
+PRECONDITIONER_INTERVAL = 'preconditioner_interval'
 
 class Shampoo(optim.Optimizer):
         """The Shampoo optimizer."""
@@ -345,11 +349,13 @@ class Shampoo(optim.Optimizer):
                 self.cosine_dict = {}
                 self.cosine_layer_dict = {}
                 self.max_eigen_layer_dict = {}
+                self.interval_layer_dict = {}
                 super(Shampoo, self).__init__(params, defaults)
 
         def init_var_state(self, var, state):
                 """Initialize the PyTorch state of for a single variable."""
                 state[STEP] = 0
+                state[PRECONDITIONER_INTERVAL] = self.hps.preconditioning_compute_steps
                 state[MOMENTUM] = torch.zeros_like(var.data, device=var.get_device())
                 state[PRECONDITIONER] = Preconditioner(var, self.hps)
                 if self.hps.graft_type == LayerwiseGrafting.ADAGRAD:
@@ -363,7 +369,6 @@ class Shampoo(optim.Optimizer):
                 hps = self.hps
                 original_grad_norm_sum = 0
                 shampoo_norm_sum = 0
-                cosine_sim = []
                 graft_norm_sum = 0
 
                 for group in self.param_groups:
@@ -385,7 +390,7 @@ class Shampoo(optim.Optimizer):
 
                                 shampoo_prev_grad = None
                                 if state[STEP] >= self.hps.start_preconditioning_step:
-                                        if state[STEP] >= hps.early_phase_iters and state[STEP] % hps.preconditioning_compute_steps == 0:
+                                        if state[STEP] >= hps.early_phase_iters and state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
                                         if state[STEP] < hps.early_phase_iters and state[STEP] % hps.early_preconditioning_compute_steps == 0:
                                                 shampoo_prev_grad = preconditioner.preconditioned_grad(grad)
@@ -395,7 +400,7 @@ class Shampoo(optim.Optimizer):
                                 if state[STEP] >= hps.early_phase_iters:
                                         if state[STEP] % hps.statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
-                                        if state[STEP] % hps.preconditioning_compute_steps == 0:
+                                        if state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 preconditioner.compute_preconditioners()
                                 else:
                                         if state[STEP] % hps.early_statistics_compute_steps == 0:
@@ -424,10 +429,15 @@ class Shampoo(optim.Optimizer):
                                         if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                                 cos = torch.nn.CosineSimilarity(dim=0)
                                                 cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
-                                                cosine_sim.append(cosine_sim_value)
                                                 self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                                 self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
                                 
+                                if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
+                                        interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
+                                        interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
+                                        state[PRECONDITIONER_INTERVAL] = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
+                                self.interval_layer_dict[self.param_names[p]] = state[PRECONDITIONER_INTERVAL]
+
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
                                         shampoo_grad.add_(p.data, alpha=self.hps.weight_decay)
@@ -462,6 +472,7 @@ class Shampoo(optim.Optimizer):
                 }
 
                 if shampoo_prev_grad is not None:
+                       cosine_sim = self.cosine_layer_dict.values()
                        self.cosine_dict['prev_cos_sim_mean'] = float(sum(cosine_sim) / len(cosine_sim))
                        self.cosine_dict['prev_cos_sim_not_1_count_th_1e-2'] =count_non_ones(cosine_sim, thres = 1e-2)
                        self.cosine_dict['prev_cos_sim_not_1_ratio_th_1e-2'] =float(count_non_ones(cosine_sim, thres = 1e-2) / len(cosine_sim))
