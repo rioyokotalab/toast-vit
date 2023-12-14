@@ -292,7 +292,7 @@ parser.add_argument('--gradient_value_clip', default=-1, type=float)
 parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 'SGD', 'AdaGrad'])
 
 parser.add_argument('--interval_cosine_thres', default=-1, type=float)
-parser.add_argument('--interval_scheduling_factor', default=1, type=int)
+parser.add_argument('--interval_scheduling_factor', default=1, type=float)
 
 # CIFAR Dataset
 parser.add_argument('--use_cifar', action='store_true', default=False,
