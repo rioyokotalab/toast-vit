@@ -432,11 +432,12 @@ class Shampoo(optim.Optimizer):
                                                 self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                                 self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
                                 
-                                if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
-                                        interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
-                                        interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
-                                        state[PRECONDITIONER_INTERVAL] = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
-                                self.interval_layer_dict[self.param_names[p]] = state[PRECONDITIONER_INTERVAL]
+                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                        if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
+                                                interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
+                                                interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
+                                                state[PRECONDITIONER_INTERVAL] = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
+                                        self.interval_layer_dict[self.param_names[p]] = state[PRECONDITIONER_INTERVAL]
 
                                 # Weight decay
                                 if self.hps.weight_decay != 0.0:
