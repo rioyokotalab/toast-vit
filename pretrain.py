@@ -760,9 +760,9 @@ def main():
                 # step LR for next epoch
                 lr_scheduler.step(epoch + 1, eval_metrics[eval_metric])
 
-            if output_dir is not None and args.rank == 0:
+            if args.rank == 0:
                 original_update_summary(
-                    epoch, train_metrics, eval_metrics, os.path.join(output_dir, 'summary.csv'),
+                    epoch, train_metrics, eval_metrics,
                     write_header=best_metric is None, log_wandb=args.log_wandb and has_wandb)
 
             #if saver is not None:
