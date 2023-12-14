@@ -635,7 +635,8 @@ def main():
                                         early_preconditioning_compute_steps = args.early_preconditioning_compute_steps,
                                         early_statistics_compute_steps = args.early_statistics_compute_steps,
                                         interval_cosine_thres=args.interval_cosine_thres,
-                                        interval_scheduling_factor = args.interval_scheduling_factor)
+                                        interval_scheduling_factor = args.interval_scheduling_factor,
+                                        total_iters = len(loader_train) * (args.epochs + args.cooldown_epochs))
         optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams, param_names = param_names)
     elif args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
@@ -876,6 +877,7 @@ def train_one_epoch(
                         log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
                         log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
                         log_dict['IntervalLayer/'] = optimizer.interval_layer_dict
+                        log_dict['UpdateLayer/'] = optimizer.update_times_layer_dict
                         max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
                         if len(max_eigen_list) > 0:
                             log_dict['MaxEigen/'] = {

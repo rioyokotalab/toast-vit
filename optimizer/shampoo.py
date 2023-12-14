@@ -78,7 +78,8 @@ class ShampooHyperParams:
 
         # Interval Scheduling
         interval_cosine_thres: float = -1
-        interval_scheduling_factor: int = 1
+        interval_scheduling_factor: float = 1
+        total_iters: int = 1
 
 class Graft:
         """Base class to perform grafting onto Shampoo. This class does no grafting.
@@ -350,6 +351,10 @@ class Shampoo(optim.Optimizer):
                 self.cosine_layer_dict = {}
                 self.max_eigen_layer_dict = {}
                 self.interval_layer_dict = {}
+                self.update_times_layer_dict = {}
+                for mname in param_names.values():
+                       if 'bn' not in mname and 'bias' not in mname and 'norm' not in mname:
+                        self.update_times_layer_dict[mname] = 0
                 super(Shampoo, self).__init__(params, defaults)
 
         def init_var_state(self, var, state):
@@ -402,11 +407,15 @@ class Shampoo(optim.Optimizer):
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % state[PRECONDITIONER_INTERVAL] == 0:
                                                 preconditioner.compute_preconditioners()
+                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                        self.update_times_layer_dict[self.param_names[p]] += 1
                                 else:
                                         if state[STEP] % hps.early_statistics_compute_steps == 0:
                                                 preconditioner.add_statistics(grad)
                                         if state[STEP] % hps.early_preconditioning_compute_steps == 0:
                                                 preconditioner.compute_preconditioners()
+                                                if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
+                                                        self.update_times_layer_dict[self.param_names[p]] += 1
 
                                 # Precondition gradients
                                 graft_grad = graft.precondition_gradient(grad)
@@ -436,7 +445,10 @@ class Shampoo(optim.Optimizer):
                                         if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
                                                 interval_mag_exp = (cosine_sim_value - self.hps.interval_cosine_thres) / (1 - self.hps.interval_cosine_thres)
                                                 interval_mag = self.hps.interval_scheduling_factor ** interval_mag_exp
-                                                state[PRECONDITIONER_INTERVAL] = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
+                                                preconditioner_int = math.ceil(state[PRECONDITIONER_INTERVAL] * interval_mag)
+                                                if preconditioner_int > self.hps.total_iters:
+                                                       preconditioner_int = self.hps.total_iters
+                                                state[PRECONDITIONER_INTERVAL] = preconditioner_int
                                         self.interval_layer_dict[self.param_names[p]] = state[PRECONDITIONER_INTERVAL]
 
                                 # Weight decay
