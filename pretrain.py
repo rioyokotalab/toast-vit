@@ -127,7 +127,7 @@ parser.add_argument('--dataset_size', default=None, type=int,
                     help='Number of Images in the dataset, set to num_classes * 1000 if None')
 
 # Optimizer parameters
-parser.add_argument('--opt', default='sgd', type=str, metavar='OPTIMIZER',
+parser.add_argument('--opt', default='adamw', type=str, metavar='OPTIMIZER',
                     help='Optimizer (default: "sgd"')
 parser.add_argument('--opt-eps', default=None, type=float, metavar='EPSILON',
                     help='Optimizer Epsilon (default: None, use opt default)')
@@ -362,6 +362,10 @@ def main():
                             "Metrics not being logged to wandb, try `pip install wandb`")
 
     if args.use_cifar:
+        if args.dataset == 'CIFAR10':
+            args.num_classes = 10
+        if args.dataset == 'CIFAR100':
+            args.num_classes = 100
         args.input_size = [3, 32, 32]
         if args.model == 'resnet18':
             model = ResNet18(num_classes=args.num_classes)
@@ -374,7 +378,7 @@ def main():
         elif args.model == 'wideresnet28':
             model = WideResNet(depth=28, num_classes=args.num_classes, widen_factor=10, dropRate=args.drop)
         elif 'VGG' in args.model:
-            model = VGG(vgg_name=args.model)
+            model = VGG(vgg_name=args.model, num_classes=args.num_classes)
     else:
         model = create_model(
         args.model,
@@ -391,8 +395,8 @@ def main():
     if args.rank == 0:
         _logger.info(
             f'Model {safe_model_name(args.model)} created, param count:{sum([m.numel() for m in model.parameters()])}')
-        # mkdir output dir
-        os.makedirs(args.output, exist_ok=True)
+        # # mkdir output dir
+        # os.makedirs(args.output, exist_ok=True)
 
     data_config = resolve_data_config(vars(args), model=model, verbose=args.rank == 0)
 
@@ -716,19 +720,19 @@ def main():
     best_epoch = None
     saver = None
     output_dir = None
-    if args.rank == 0:
-        exp_name = '-'.join([
-            datetime.now().strftime("%Y%m%d-%H%M%S.%f"),
-            safe_model_name(args.model),
-            str(data_config['input_size'][-1])
-        ])
-        output_dir = get_outdir(args.output if args.output else './output/train', exp_name)
-        decreasing = True if eval_metric == 'loss' else False
-        saver = CheckpointSaver(
-            model=model, optimizer=optimizer, args=args, amp_scaler=loss_scaler,
-            checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
-        with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
-            f.write(args_text)
+    # if args.rank == 0:
+    #     exp_name = '-'.join([
+    #         datetime.now().strftime("%Y%m%d-%H%M%S.%f"),
+    #         safe_model_name(args.model),
+    #         str(data_config['input_size'][-1])
+    #     ])
+    #     output_dir = get_outdir(args.output if args.output else './output/train', exp_name)
+    #     decreasing = True if eval_metric == 'loss' else False
+    #     saver = CheckpointSaver(
+    #         model=model, optimizer=optimizer, args=args, amp_scaler=loss_scaler,
+    #         checkpoint_dir=output_dir, recovery_dir=output_dir, decreasing=decreasing, max_history=args.checkpoint_hist)
+    #     with open(os.path.join(output_dir, 'args.yaml'), 'w') as f:
+    #         f.write(args_text)
 
     try:
         for epoch in range(start_epoch, num_epochs):
