@@ -646,7 +646,7 @@ def ComputePower(mat_g, p,
                         if new_error > error * 1.2:
                                 max_ev = None
                                 if not recursive:
-                                        mat_root, max_ev = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, None, True)
+                                        mat_root, max_ev = ComputePower(mat_g_raw, p, iter_count, error_tolerance, ridge_epsilon, True)
                                 else:
                                         mat_root = matrix_neg_power(mat_g_raw, p)
                                 break
