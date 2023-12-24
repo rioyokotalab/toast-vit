@@ -881,14 +881,22 @@ def train_one_epoch(
                         log_dict['Cosine/'] = optimizer.cosine_dict
                         log_dict['CosineLayer/'] = optimizer.cosine_layer_dict
                         log_dict['MaxEigenLayer/'] = optimizer.max_eigen_layer_dict
+                        log_dict['MeanEigenLayer/'] = optimizer.mean_eigen_layer_dict
                         log_dict['IntervalLayer/'] = optimizer.interval_layer_dict
                         log_dict['UpdateLayer/'] = optimizer.update_times_layer_dict
                         max_eigen_list = create_max_eigen_list(optimizer.max_eigen_layer_dict)
+                        mean_eigen_list = create_max_eigen_list(optimizer.mean_eigen_layer_dict)
                         if len(max_eigen_list) > 0:
                             log_dict['MaxEigen/'] = {
                             'Max' : max(max_eigen_list),
                             'Min' : min(max_eigen_list),
                             'Mean' : sum(max_eigen_list) / len(max_eigen_list)
+                            }
+                        if len(mean_eigen_list) > 0:
+                            log_dict['MeanEigen/'] = {
+                            'Max' : max(mean_eigen_list),
+                            'Min' : min(mean_eigen_list),
+                            'Mean' : sum(mean_eigen_list) / len(mean_eigen_list)
                             }
                     wandb.log(log_dict)
                 if math.isnan(losses_m.val):

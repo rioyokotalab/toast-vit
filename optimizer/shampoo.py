@@ -246,12 +246,15 @@ class Preconditioner:
                         self.statistics = []
                         self.preconditioners = []
                         self.max_eigens = []
+                        self.meam_eigens = []
                 else:
                         eps = self._hps.matrix_eps
                         self.statistics = [eps * torch.eye(s[0], device=device) for s in shapes]
                         self.preconditioners = [torch.eye(s[0], device=device) for s in shapes]
                         self.max_eigens = [None for s in shapes]
+                        self.mean_eigens = [None for s in shapes]
                 self.max_eigen_dict = {}
+                self.mean_eigen_dict = {}
 
         def add_statistics(self, grad):
                 """Compute statistics from gradients and add to the correct state entries.
@@ -289,6 +292,7 @@ class Preconditioner:
                         else:
                                 self.preconditioners[i], self.max_eigens[i] = ComputePower(
                                         stat, exp, ridge_epsilon=eps)
+                        self.mean_eigens[i] = (torch.trace(stat).item() / stat.shape[-1])
 
         def preconditioned_grad(self, grad):
                 """Precondition the gradient.
@@ -305,10 +309,13 @@ class Preconditioner:
                 preconditioned_partitioned_grads = []
                 num_splits = self._partitioner.num_splits()
                 max_eigen_dict = {}
+                mean_eigen_dict = {}
                 for i, grad in enumerate(partitioned_grads):
                         preconditioners_for_grad = self.preconditioners[i * num_splits:(i + 1) * num_splits]
                         max_eigens_for_grad = self.max_eigens[i * num_splits:(i + 1) * num_splits]
+                        mean_eigens_for_grad = self.mean_eigens[i * num_splits:(i + 1) * num_splits]
                         max_eigen_dict[i] = {}
+                        mean_eigen_dict[i] = {}
                         rank = len(grad.shape)
                         precond_grad = grad
                         for j in range(rank):
@@ -317,10 +324,13 @@ class Preconditioner:
                                                 precond_grad, preconditioner, [[0], [0]])
                                 if max_eigens_for_grad[j] is not None:
                                         max_eigen_dict[i][j] = max_eigens_for_grad[j]
+                                if mean_eigens_for_grad[j] is not None:
+                                        mean_eigen_dict[i][j] = mean_eigens_for_grad[j]
                         preconditioned_partitioned_grads.append(precond_grad)
                 merged_grad = self._partitioner.merge_partitions(
                                 preconditioned_partitioned_grads)
                 self.max_eigen_dict = max_eigen_dict
+                self.mean_eigen_dict = mean_eigen_dict
                 return torch.reshape(merged_grad, self._original_shape)
 
 STEP = 'step'
@@ -344,6 +354,7 @@ class Shampoo(optim.Optimizer):
                 self.cosine_dict = {}
                 self.cosine_layer_dict = {}
                 self.max_eigen_layer_dict = {}
+                self.mean_eigen_layer_dict = {}
                 self.interval_layer_dict = {}
                 self.update_times_layer_dict = {}
                 for mname in param_names.values():
@@ -434,6 +445,7 @@ class Shampoo(optim.Optimizer):
                                                 cosine_sim_value = cos(shampoo_grad.view(-1), shampoo_prev_grad.view(-1))
                                                 self.cosine_layer_dict[self.param_names[p]] = cosine_sim_value
                                                 self.max_eigen_layer_dict[self.param_names[p]] = preconditioner.max_eigen_dict
+                                                self.mean_eigen_layer_dict[self.param_names[p]] = preconditioner.mean_eigen_dict
                                 
                                 if 'bn' not in self.param_names[p] and 'bias' not in self.param_names[p] and 'norm' not in self.param_names[p]:
                                         if shampoo_prev_grad is not None and state[STEP] >= self.hps.start_preconditioning_step and self.hps.interval_cosine_thres != -1:
