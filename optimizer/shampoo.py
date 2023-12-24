@@ -68,8 +68,9 @@ class ShampooHyperParams:
         gradient_value_clip: float = -1
         # Nesterov momentum
         reuse_matrix: bool = False
-        # Jorge
-        use_jorge: bool = False
+        # Inverse
+        use_inverse: bool = False
+        dmp_opt: str = 'mean'
         
         # early curvature warmup
         early_phase_iters: float = 0
@@ -268,10 +269,7 @@ class Preconditioner:
                         for i in range(rank):
                                 axes = list(range(i)) + list(range(i + 1, rank))
                                 stat = torch.tensordot(grad, grad, [axes, axes])
-                                if self._hps.use_jorge:
-                                        self.statistics[j*rank + i].mul_(0).add_(stat, alpha=1)
-                                else:
-                                        self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
+                                self.statistics[j*rank + i].mul_(w1).add_(stat, alpha=w2)
 
         def exponent_for_preconditioner(self):
                 """Returns exponent to use for inverse-pth root M^{-1/p}."""
@@ -284,17 +282,13 @@ class Preconditioner:
                 exp = self.exponent_for_preconditioner()
                 eps = self._hps.matrix_eps
                 for i, stat in enumerate(self.statistics):
-                        if self._hps.reuse_matrix:
-                               initial_matrix = self.preconditioners[i]
-                        else:
-                               initial_matrix = None
-                        if self._hps.use_jorge:
-                                self.preconditioners[i], self.max_eigens[i] = ComputeJorge(
-                                        stat, self.preconditioners[i], beta2=self._hps.beta2
+                        if self._hps.use_inverse:
+                                self.preconditioners[i], self.max_eigens[i] = ComputeInverse(
+                                        stat, eps, self._hps.dmp_opt
                                 )
                         else:
                                 self.preconditioners[i], self.max_eigens[i] = ComputePower(
-                                        stat, exp, ridge_epsilon=eps, initial_matrix = initial_matrix)
+                                        stat, exp, ridge_epsilon=eps)
 
         def preconditioned_grad(self, grad):
                 """Precondition the gradient.
@@ -578,7 +572,6 @@ def ComputePower(mat_g, p,
                                                                  iter_count=100,
                                                                  error_tolerance=1e-6,
                                                                  ridge_epsilon=1e-6,
-                                                                 initial_matrix = None,
                                                                  recursive = False):
         """A method to compute G^{-1/p} using a coupled Newton iteration.
 
@@ -750,10 +743,44 @@ def merge_grads(state, grads):
 def eye_like(tensor):
     return torch.eye(*tensor.size(), out=torch.empty_like(tensor))
 
-def ComputeJorge(stat, prev_stat, beta2):
-        beta2_dash = torch.norm(stat, p='fro') / (torch.norm(stat, p='fro') + 1)
-        if beta2_dash > beta2:
-            beta2 = beta2_dash
-        X = torch.pow(prev_stat, 4)@stat
-        mat_root = (beta2**-0.25) * prev_stat @ (eye_like(X) - ((1-beta2)/(4*beta2)) * X + (5*(1-beta2)**2/(32*beta2**2))*torch.pow(X,2))
-        return mat_root
+def ComputeInverse(stat, damping, dmp_opt = 'mean'):
+        if dmp_opt == 'mean':
+                eps = damping * torch.trace(stat).item() / stat.shape[-1]
+                return cholesky_inv(stat, eps), None
+        elif dmp_opt == 'max':
+                max_eig = power_method_max_eigen(stat)
+                eps = max_eig*damping
+                return cholesky_inv(stat, eps), max_eig
+
+def cholesky_inv(X, damping=1e-12):
+    diag = torch.diagonal(X)
+    diag += damping
+    u = torch.linalg.cholesky(X)
+    diag -= damping
+    return torch.cholesky_inverse(u)
+
+def power_method_max_eigen(matrix, max_iterations=100, tolerance=1e-5):
+    n, m = matrix.size()
+    if n != m:
+        raise ValueError("Matrix must be square.")
+
+    device = matrix.device  # matrixのデバイスを取得
+
+    # 初期ベクトル (デバイスを揃える)
+    b_k = torch.rand(n, device=device)
+
+    for _ in range(max_iterations):
+        # 行列Aとベクトルb_kの積
+        b_k1 = torch.matmul(matrix, b_k)
+        
+        # 次のベクトル
+        b_k1_norm = torch.norm(b_k1).item()
+        b_k_next = b_k1 / b_k1_norm
+        
+        if torch.norm(b_k_next - b_k).item() < tolerance:
+            break
+        
+        b_k = b_k_next
+
+    # 固有値を返す (デバイスを揃える)
+    return float(b_k1_norm)
