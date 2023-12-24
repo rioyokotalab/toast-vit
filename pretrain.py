@@ -293,6 +293,7 @@ parser.add_argument('--grafting', default='AdaGrad', type=str, choices=['None', 
 
 parser.add_argument('--interval_cosine_thres', default=-1, type=float)
 parser.add_argument('--interval_scheduling_factor', default=1, type=float)
+parser.add_argument('--inverse_exponent', default=0, type=float)
 parser.add_argument('--use_inverse', action='store_true', default=False,
                     help='shampoo_inverse')
 parser.add_argument('--dmp_opt', default='mean', type=str)
@@ -641,7 +642,8 @@ def main():
                                         interval_scheduling_factor = args.interval_scheduling_factor,
                                         total_iters = len(loader_train) * (args.epochs + args.cooldown_epochs),
                                         use_inverse = args.use_inverse,
-                                        dmp_opt = args.dmp_opt)
+                                        dmp_opt = args.dmp_opt,
+                                        inverse_exponent_override = args.inverse_exponent)
         optimizer = Shampoo(model.parameters(), lr=args.lr, momentum=args.momentum ,hyperparams=hyperparams, param_names = param_names)
     elif args.opt == 'adamw':
         optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, betas=(args.momentum, args.beta2), weight_decay=args.weight_decay)
