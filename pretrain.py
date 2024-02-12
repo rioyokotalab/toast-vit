@@ -762,6 +762,8 @@ def main():
                 args,
                 amp_autocast=amp_autocast,
             )
+            if math.isnan(eval_metrics['loss']):
+                break
             ##
 
             if lr_scheduler is not None:
@@ -771,7 +773,7 @@ def main():
             if args.rank == 0:
                 original_update_summary(
                     epoch, train_metrics, eval_metrics,
-                    write_header=best_metric is None, log_wandb=args.log_wandb and has_wandb)
+                    log_wandb=args.log_wandb and has_wandb)
 
             #if saver is not None:
             #    # save proper checkpoint with eval metric
