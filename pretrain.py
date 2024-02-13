@@ -97,6 +97,8 @@ parser.add_argument('--val-split', metavar='NAME', default='validation',
                     help='dataset validation split (default: validation)')
 parser.add_argument('--model', default='deit_tiny_patch16_224', type=str, metavar='MODEL',
                     help='Name of model to train (default: deit_tiny_patch16_224)')
+parser.add_argument('--width', type=int, default=16,
+                    help='model width')
 parser.add_argument('--pretrained', action='store_true', default=False,
                     help='Start with pretrained version of specified network (if avail)')
 parser.add_argument('--resume', default='', type=str, metavar='PATH',
@@ -368,7 +370,7 @@ def main():
                             "Metrics not being logged to wandb, try `pip install wandb`")
 
     if args.use_cifar:
-        if args.dataset == 'CIFAR10':
+        if args.dataset == 'CIFAR10' or args.dataset == 'FashionMNIST':
             args.num_classes = 10
         if args.dataset == 'CIFAR100':
             args.num_classes = 100
@@ -384,7 +386,7 @@ def main():
         elif args.model == 'wideresnet28':
             model = WideResNet(depth=28, num_classes=args.num_classes, widen_factor=10, dropRate=args.drop)
         elif args.model == 'cnn':
-            model = SimpleCNN(num_classes=args.num_classes)
+            model = SimpleCNN(width = args.width, num_classes=args.num_classes)
         elif args.model == 'mlp':
             model = MLP(n_hid = 1024, num_classes=args.num_classes)
         elif 'VGG' in args.model:
@@ -514,6 +516,18 @@ def main():
                 normalize
         ])
 
+        if datasetname == 'fashionmnist':
+            transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.1307,), (0.3081,))])
+            dataset_train = torchvision.datasets.FashionMNIST(root='data/',
+                                        train=True,
+                                        download=True,
+                                        transform = transform)
+            dataset_eval = torchvision.datasets.FashionMNIST(root='data/',
+                                        train=False,
+                                        download=True,
+                                        transform = transform)
         if datasetname == 'cifar10':
             cutout = Cutout(n_holes=1, length=16)
             train_transform.transforms.append(cutout)

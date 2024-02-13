@@ -505,8 +505,6 @@ class Shampoo(optim.Optimizer):
                        self.cosine_dict['prev_cos_sim_min_1'] = float(sorted_nums[0])
                        self.cosine_dict['prev_cos_sim_min_2'] = float(sorted_nums[1])
                        self.cosine_dict['prev_cos_sim_min_3'] = float(sorted_nums[2])
-                       self.cosine_dict['prev_cos_sim_min_4'] = float(sorted_nums[3])
-                       self.cosine_dict['prev_cos_sim_min_5'] = float(sorted_nums[4])
 
 def count_non_ones(lst, thres = 1e-3):
     count = 0
