@@ -44,6 +44,8 @@ from optimizer.shampoo import ShampooHyperParams, Shampoo, LayerwiseGrafting
 from models.resnet import ResNet18, ResNet34, ResNet50
 from models.vgg import VGG
 from models.wideresnet import WideResNet
+from models.cnn import SimpleCNN
+from models.mlp import MLP
 from torchvision import transforms
 
 def print0(message):
@@ -381,6 +383,10 @@ def main():
             model = WideResNet(depth=16, num_classes=args.num_classes, widen_factor=8, dropRate=args.drop)
         elif args.model == 'wideresnet28':
             model = WideResNet(depth=28, num_classes=args.num_classes, widen_factor=10, dropRate=args.drop)
+        elif args.model == 'cnn':
+            model = SimpleCNN(num_classes=args.num_classes)
+        elif args.model == 'mlp':
+            model = MLP(n_hid = 1024, num_classes=args.num_classes)
         elif 'VGG' in args.model:
             model = VGG(vgg_name=args.model, num_classes=args.num_classes)
     else:
