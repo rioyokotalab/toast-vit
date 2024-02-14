@@ -19,7 +19,6 @@ from datetime import datetime
 import shutil
 import math
 import random as rand
-
 import torch
 import torch.nn as nn
 import torchvision.utils
@@ -55,6 +54,22 @@ def print0(message):
     else:
         print(message, flush=True)
 
+def save_checkpoint(epoch, model, optimizer, save_dir):
+    """
+    エポック、モデル、オプティマイザーの状態を保存する関数
+    :param epoch: 現在のエポック数
+    :param model: 訓練中のモデル
+    :param optimizer: 使用中のオプティマイザー
+    :param save_dir: チェックポイントを保存するディレクトリ
+    """
+    # エポックごとのフォルダを作成
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # モデルとオプティマイザーの状態を保存
+    model_path = os.path.join(save_dir, f'model_ep{epoch}.pth')
+    optimizer_path = os.path.join(save_dir, f'optimizer_ep{epoch}.pth')
+    torch.save(model.state_dict(), model_path)
+    torch.save(optimizer.state_dict(), optimizer_path)
 
 try:
     from apex import amp
@@ -305,6 +320,9 @@ parser.add_argument('--dmp_opt', default='mean', type=str)
 # CIFAR Dataset
 parser.add_argument('--use_cifar', action='store_true', default=False,
                     help='use cifar dataset')
+parser.add_argument('--save_check_point', action='store_true', default=False,
+                    help='use cifar dataset')
+parser.add_argument('--out_dir', default='./checkpoints/', type=str)
 
 def _parse_args():
     args = parser.parse_args()
@@ -323,6 +341,12 @@ def main():
     args.local_rank = 0
     args.world_size = 1
     args.rank = 0  # global rank
+
+    if args.save_check_point:
+        dt_now = str(datetime.now()).replace(' ','-')
+        args.output_dir= args.output+'/'+dt_now
+        os.makedirs(args.output_dir, exist_ok=True)
+
     if args.distributed:
         # initialize torch.distributed using MPI
         master_addr = os.getenv("MASTER_ADDR", default="localhost")
@@ -795,6 +819,8 @@ def main():
                     epoch, train_metrics, eval_metrics,
                     log_wandb=args.log_wandb and has_wandb)
 
+            if args.save_check_point:
+                save_checkpoint(epoch, model, optimizer, args.output_dir)
             #if saver is not None:
             #    # save proper checkpoint with eval metric
             #    save_metric = train_metrics[eval_metric]
